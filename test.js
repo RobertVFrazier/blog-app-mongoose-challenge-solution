@@ -52,11 +52,41 @@ describe('Get all posts.', function(){
         return BlogPost.findById(myId);
       }).then((myBlogPost)=>{
         myBlogPost.title.should.equal(apiRes.body[0].title);
-      }); 		
+      });
   });
 });
 
-
+describe('Edit one post.', function(){
+  it('Should edit one post.', function(){
+    let apiRes;
+    const updateData = {
+      author: {
+        firstName: 'Jamie',
+        lastName: 'Albertson'
+      },
+      title:  'A Blog Post Goes Forth',
+      content: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. And that is sufficient pseudo-Latin for one test.'
+    };
+    return BlogPost
+      .findOne()
+      .then(post=>{
+      	updateData.id = post.id;
+      	return chai.request(app)
+      	  .put(`/posts/${post.id}`)
+      	  .send(updateData);
+      })
+      .then((res)=>{
+        res.should.have.status(204);
+        return BlogPost.findById(updateData.id);
+      })
+      .then(post=>{
+      	post.title.should.equal(updateData.title);
+      	post.author.firstName.should.equal(updateData.author.firstName);
+      	post.author.lastName.should.equal(updateData.author.lastName);
+      	post.content.should.equal(updateData.content);
+      });
+  });
+});
 
 describe('Delete one post.', function(){
   it('Should delete one post.', function(){
