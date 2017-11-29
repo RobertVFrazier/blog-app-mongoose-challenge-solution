@@ -56,10 +56,11 @@ describe('Get all posts.', function(){
   });
 });
 
-let apiRes;
+
 
 describe('Delete one post.', function(){
   it('Should delete one post.', function(){
+    let apiRes;
     return BlogPost
       .findOne()
       .then((res)=>{
@@ -74,5 +75,3 @@ describe('Delete one post.', function(){
       });
   });
 });
-
-
