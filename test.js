@@ -88,6 +88,21 @@ describe('Edit one post.', function(){
   });
 });
 
+describe('Create endpoint for post.', function(){
+    it('Should create one post.', function(){
+      let apiRes;
+      const updateData = {
+        author: {
+          firstName: 'Jamie',
+          lastName: 'Albertson'
+        },
+        title:  'A Blog Post Goes Forth',
+        content: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. And that is sufficient pseudo-Latin for one test.'
+      };
+    
+    });
+});
+
 describe('Delete one post.', function(){
   it('Should delete one post.', function(){
     let apiRes;
