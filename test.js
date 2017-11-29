@@ -56,23 +56,23 @@ describe('Get all posts.', function(){
   });
 });
 
-describe('Get one post.', function(){
-  it('Should get one post.', function(){
-    let apiRes;
-    return chai.request(app)
-      .get('/posts/:id')
+let apiRes;
+
+describe('Delete one post.', function(){
+  it('Should delete one post.', function(){
+    return BlogPost
+      .findOne()
       .then((res)=>{
         apiRes=res;
-        res.should.have.status(200);
-        res.should.be.json;
-        res.body.should.be.a('array');
-        res.body.length.should.be.above(0);
-        const myId=res.body[0].id;
-        console.log(myId);
-        return BlogPost.findById(myId);
-      }).then((myBlogPost)=>{
-        myBlogPost.title.should.equal(apiRes.body[0].title);
-      }); 		
+        return chai.request(app).delete(`/posts/${apiRes.id}`);
+      }).then((res)=>{
+        res.should.have.status(204);
+        return BlogPost.findById(apiRes.id);
+      })
+      .then((res)=>{
+        should.not.exist(res);
+      });
   });
 });
+
 
