@@ -41,7 +41,7 @@ describe('Get all posts.', function(){
     let apiRes;
     return chai.request(app)
       .get('/posts')
-      .then((res)=>{
+      .then(res=>{
         apiRes=res;
         res.should.have.status(200);
         res.should.be.json;
@@ -58,7 +58,6 @@ describe('Get all posts.', function(){
 
 describe('Edit one post.', function(){
   it('Should edit one post.', function(){
-    let apiRes;
     const updateData = {
       author: {
         firstName: 'Jamie',
@@ -70,37 +69,57 @@ describe('Edit one post.', function(){
     return BlogPost
       .findOne()
       .then(post=>{
-      	updateData.id = post.id;
-      	return chai.request(app)
-      	  .put(`/posts/${post.id}`)
-      	  .send(updateData);
+        updateData.id = post.id;
+        return chai.request(app)
+          .put(`/posts/${post.id}`)
+          .send(updateData);
       })
-      .then((res)=>{
+      .then(res=>{
         res.should.have.status(204);
         return BlogPost.findById(updateData.id);
       })
       .then(post=>{
-      	post.title.should.equal(updateData.title);
-      	post.author.firstName.should.equal(updateData.author.firstName);
-      	post.author.lastName.should.equal(updateData.author.lastName);
-      	post.content.should.equal(updateData.content);
+        post.title.should.equal(updateData.title);
+        post.author.firstName.should.equal(updateData.author.firstName);
+        post.author.lastName.should.equal(updateData.author.lastName);
+        post.content.should.equal(updateData.content);
       });
   });
 });
 
 describe('Create endpoint for post.', function(){
-    it('Should create one post.', function(){
-      let apiRes;
-      const updateData = {
-        author: {
-          firstName: 'Jamie',
-          lastName: 'Albertson'
-        },
-        title:  'A Blog Post Goes Forth',
-        content: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. And that is sufficient pseudo-Latin for one test.'
-      };
-    
-    });
+  it('Should create one post.', function(){
+    const newPost = {
+      author: {
+        firstName: 'Jamie',
+        lastName: 'Albertson'
+      },
+      title:  'A Blog Post Goes Forth',
+      content: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. And that is sufficient pseudo-Latin for one test.'
+    };
+
+    return chai.request(app)
+      .post('/posts')
+      .send(newPost)
+      .then(res=>{
+        res.should.have.status(201);
+        res.should.be.json;
+        res.body.should.be.a('object');
+        res.body.should.include.keys(
+          'id', 'author', 'content', 'title', 'created');
+        res.body.id.should.not.be.null;
+        res.body.author.should.equal(`${newPost.author.firstName} ${newPost.author.lastName}`);
+        res.body.content.should.equal(newPost.content);
+        res.body.title.should.equal(newPost.title);
+        return BlogPost.findById(res.body.id); 
+      })
+      .then(post=>{
+        post.title.should.equal(newPost.title);
+        post.author.firstName.should.equal(newPost.author.firstName);
+        post.author.lastName.should.equal(newPost.author.lastName);
+        post.content.should.equal(newPost.content);
+      });
+  });
 });
 
 describe('Delete one post.', function(){
@@ -108,14 +127,14 @@ describe('Delete one post.', function(){
     let apiRes;
     return BlogPost
       .findOne()
-      .then((res)=>{
+      .then(res=>{
         apiRes=res;
         return chai.request(app).delete(`/posts/${apiRes.id}`);
-      }).then((res)=>{
+      }).then(res=>{
         res.should.have.status(204);
         return BlogPost.findById(apiRes.id);
       })
-      .then((res)=>{
+      .then(res=>{
         should.not.exist(res);
       });
   });
