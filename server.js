@@ -2,11 +2,15 @@
 
 const bodyParser = require('body-parser');
 const express = require('express');
-const mongoose = require('mongoose');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
+const passport = require('passport');
+const {Strategy: LocalStrategy} = require('passport-local');
 
 const {DATABASE_URL, PORT} = require('./config');
 const {BlogPost} = require('./models');
+const {UserModel} = require('./models');
 
 const app = express();
 
@@ -15,6 +19,90 @@ app.use(bodyParser.json());
 
 mongoose.Promise = global.Promise;
 
+//-----------------------------------------------------------------------
+
+const localStrategy = new LocalStrategy((username, password, done)=>{
+  let user;
+  UserModel
+    .findOne({username})
+    .then(results=>{
+      user = results;
+
+      if (!user){
+        return Promise.reject({
+          reason: 'LoginError',
+          message: 'Incorrect username',
+          location: 'username'
+        });
+      }
+
+      return user.validatePassword(password);
+    })
+    .then(isValid=>{
+      if(!isValid){
+        return Promise.reject({
+          reason: 'LoginError',
+          message: 'Incorrect password',
+          location: 'password'
+        });
+      }
+      return done(null, user);
+    })
+    .catch(err=>{
+      if (err.reason==='LoginError'){
+        return done(null, false);
+      }
+      return done(err);
+    });
+});
+
+passport.use(localStrategy);
+const localAuth = passport.authenticate('local', {session: false});
+
+//-----------------------------------------------------------------------
+
+app.get('/public', (req, res)=>{
+  res.send('Hello world!');
+});
+
+app.post('/users', (req, res)=>{
+  let{username, password, firstName, lastName}=req.body;
+  UserModel
+    .find({username})
+    .count()
+    .then(count=>{
+      if(count>0){
+        return Promise.reject({
+          code: 400,
+          reason: 'ValidationError',
+          message: 'Username already taken',
+          location: 'username'
+        });
+      }
+      return UserModel.hashPassword(password);
+    })
+    .then(digest => {
+      return UserModel
+        .create({
+          username, 
+          password: digest,
+          firstName,
+          lastName
+        });
+    })
+    .then(user=>{
+      return res.status(201).json(user.apiRepr());
+    })
+    .catch(err=>{
+      if(err.reason==='ValidationError'){
+        return res.status(err.code).json(err);
+      }
+      res.status(500).json({code: 500, message: 'Internal server error'});
+    });
+});
+
+
+//-----------------------------------------------------------------------
 
 app.get('/posts', (req, res) => {
   BlogPost
@@ -38,7 +126,7 @@ app.get('/posts/:id', (req, res) => {
     });
 });
 
-app.post('/posts', (req, res) => {
+app.post('/posts', localAuth, (req, res) => {
   const requiredFields = ['title', 'content', 'author'];
   for (let i=0; i<requiredFields.length; i++) {
     const field = requiredFields[i];
@@ -60,11 +148,10 @@ app.post('/posts', (req, res) => {
       console.error(err);
       res.status(500).json({error: 'Something went wrong'});
     });
-
 });
 
 
-app.delete('/posts/:id', (req, res) => {
+app.delete('/posts/:id', localAuth, (req, res) => {
   BlogPost
     .findByIdAndRemove(req.params.id)
     .then(() => {
@@ -77,7 +164,7 @@ app.delete('/posts/:id', (req, res) => {
 });
 
 
-app.put('/posts/:id', (req, res) => {
+app.put('/posts/:id', localAuth, (req, res) => {
   if (!(req.params.id && req.body.id && req.params.id === req.body.id)) {
     res.status(400).json({
       error: 'Request path id and request body id values must match'
@@ -97,16 +184,6 @@ app.put('/posts/:id', (req, res) => {
     .then(updatedPost => res.status(204).end())
     .catch(err => res.status(500).json({message: 'Something went wrong'}));
 });
-
-
-// app.delete('/:id', (req, res) => {
-//   BlogPosts
-//     .findByIdAndRemove(req.params.id)
-//     .then(() => {
-//       console.log(`Deleted blog post with id \`${req.params.ID}\``);
-//       res.status(204).end();
-//     });
-// });
 
 
 app.use('*', function(req, res) {
@@ -129,10 +206,10 @@ function runServer(databaseUrl=DATABASE_URL, port=PORT) {
         console.log(`Your app is listening on port ${port}`);
         resolve();
       })
-      .on('error', err => {
-        mongoose.disconnect();
-        reject(err);
-      });
+        .on('error', err => {
+          mongoose.disconnect();
+          reject(err);
+        });
     });
   });
 }
@@ -141,15 +218,15 @@ function runServer(databaseUrl=DATABASE_URL, port=PORT) {
 // use it in our integration tests later.
 function closeServer() {
   return mongoose.disconnect().then(() => {
-     return new Promise((resolve, reject) => {
-       console.log('Closing server');
-       server.close(err => {
-           if (err) {
-               return reject(err);
-           }
-           resolve();
-       });
-     });
+    return new Promise((resolve, reject) => {
+      console.log('Closing server');
+      server.close(err => {
+        if (err) {
+          return reject(err);
+        }
+        resolve();
+      });
+    });
   });
 }
 
@@ -157,6 +234,6 @@ function closeServer() {
 // runs. but we also export the runServer command so other code (for instance, test code) can start the server as needed.
 if (require.main === module) {
   runServer().catch(err => console.error(err));
-};
+}
 
-module.exports = {runServer, app, closeServer,};
+module.exports = {runServer, app, closeServer, BlogPost, UserModel};
