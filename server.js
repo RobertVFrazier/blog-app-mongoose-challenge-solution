@@ -6,7 +6,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 mongoose.Promise = global.Promise;
 const passport = require('passport');
-const {Strategy: LocalStrategy} = require('passport-local');
+const LocalStrategy = require('passport-local').Strategy;
 
 const {DATABASE_URL, PORT} = require('./config');
 const {BlogPost} = require('./models');
@@ -127,7 +127,7 @@ app.get('/posts/:id', (req, res) => {
 });
 
 app.post('/posts', localAuth, (req, res) => {
-  const requiredFields = ['title', 'content', 'author'];
+  const requiredFields = ['title', 'content'];
   for (let i=0; i<requiredFields.length; i++) {
     const field = requiredFields[i];
     if (!(field in req.body)) {
@@ -141,7 +141,10 @@ app.post('/posts', localAuth, (req, res) => {
     .create({
       title: req.body.title,
       content: req.body.content,
-      author: req.body.author
+      author: {
+        firstName: req.user.firstName,
+        lastName: req.user.lastName
+      }
     })
     .then(blogPost => res.status(201).json(blogPost.apiRepr()))
     .catch(err => {
